@@ -1,40 +1,55 @@
-import userModel from "../models/userModel.js"
+import userModel from "../models/userModel.js";
 
-export const registerController = async (req, res) => {
-    try {
-        const {name, email, password} = req.body
-        //validate
-        if(!name){
-            return res.status(400).send({success: false, message: 'Enter your name'})
-        }
-        if(!email){
-            return res.status(400).send({success: false, message: 'Enter your email'})
-        }
-        if(!password){
-            return res.status(400).send({success: false, message: 'Enter your password '})
-        }
-        const exisitingUser = await userModel.findOne({email})
-        if(exisitingUser){
-            return res.status(200).send({
-                success: false,
-                message: 'Email Already Registered, Please Login'
-            })
-        }
-        const user = await userModel.create({name, email, password})
-        res.status(201).send({
-            success: true,
-            message: 'User Created Successfully',
-            user
-        })
+export const registerController = async (req, res, next) => {
+  const { name, email, password } = req.body;
+  //validate
+  if (!name) {
+    next("Name is required");
+  }
+  if (!email) {
+    next("email is required");
+  }
+  if (!password) {
+    next("Password is required");
+  }
+  const exisitingUser = await userModel.findOne({ email });
+  if (exisitingUser) {
+    next("Email Already Registered Please Login");
+  }
+  const user = await userModel.create({ name, email, password });
+
+  //token
+  const token = user.createJWT();
 
 
-    } catch (error) {
-        console.log(error)
-        res.status(400).send ({
-            message: 'Error In the Register Constroller',
-            success: false,
-            error
-        })
-    }
+  res.status(201).send({
+    success: true,
+    message: "User Created Successfully",
+    user:{
+      name:user.name,
+      lastName:user.lastName,
+      email:user.email,
+      location:user.location
+    },
+    token
+  });
+};
 
-}
+export const loginController = () => {
+  const {email, password} = req.body
+  //validation
+  if(!email || !password){
+    next('Please provide All fields')
+  }
+  //find user bye email
+  const user = await userModel.findOne({email})
+  if(!user){
+    next('Invalid Username or Password')
+  }
+  //compare password
+  const isMatch = await user.comparePassword(password)
+  if(!isMatch){
+    next('Invalid Username or Password')
+  }
+  const token = user.createJWT()
+};
